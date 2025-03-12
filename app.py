@@ -3,14 +3,47 @@ from flask import Flask, request, render_template
 import pickle
 import requests
 import pandas as pd
+import numpy as np
 from patsy import dmatrices
+import joblib
 
-# Load models
+# Define base directory and model paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, 'model')
+
+print(f"Current pandas version: {pd.__version__}")
+print(f"Current numpy version: {np.__version__}")
+
+# Load models with better error handling
 try:
-    movies = pickle.load(open('model/movies_list.pkl', 'rb'))
-    similarity = pickle.load(open('model/similarity.pkl', 'rb'))
+    movies_path = os.path.join(MODEL_DIR, 'movies_list.pkl')
+    similarity_path = os.path.join(MODEL_DIR, 'similarity.pkl')
+    
+    if not os.path.exists(movies_path) or not os.path.exists(similarity_path):
+        raise FileNotFoundError(f"Model files not found. Please check: {movies_path} and {similarity_path}")
+    
+    # Load movies DataFrame
+    try:
+        movies = pd.read_pickle(movies_path)
+    except Exception as e:
+        print(f"Error loading movies with pd.read_pickle: {e}")
+        # Fallback to joblib
+        movies = joblib.load(movies_path)
+    
+    # Load similarity matrix
+    try:
+        similarity = np.load(similarity_path, allow_pickle=True)
+    except Exception as e:
+        print(f"Error loading similarity with np.load: {e}")
+        # Fallback to joblib
+        similarity = joblib.load(similarity_path)
+        
+    print(f"Models loaded successfully from {MODEL_DIR}")
+    print(f"Movies shape: {movies.shape}")
+    print(f"Similarity shape: {similarity.shape}")
+    
 except Exception as e:
-    print(f"Error loading model files: {e}")
+    print(f"Error loading model files: {str(e)}")
     raise
 
 def fetch_poster(movie_id):
